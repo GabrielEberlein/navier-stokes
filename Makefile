@@ -6,6 +6,17 @@ TARGETS=demo headless
 SOURCES=$(shell echo *.c)
 COMMON_OBJECTS=solver.o wtime.o
 
+
+# ARGUMENTOS DE LA SIMULACION
+ARGS = $(N) $(DT) $(DIFF) $(VISC) $(FORCE) $(SOURCE)
+
+N = 64  			# Tamaño de la grilla
+DT = 0.1			# Paso de tiempo
+DIFF = 0.0			# Indice de difusion
+VISC = 0.0			# Indice de viscosidad
+FORCE = 5.0			# Fuerza de la fuente
+SOURCE = 100.0		# Tasa de la fuente
+
 all: $(TARGETS)
 
 demo: demo.o $(COMMON_OBJECTS)
@@ -13,6 +24,9 @@ demo: demo.o $(COMMON_OBJECTS)
 
 headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+run:
+	./demo $(ARGS)
 
 clean:
 	rm -f $(TARGETS) *.o .depend *~
