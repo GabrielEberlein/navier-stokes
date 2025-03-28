@@ -1,6 +1,6 @@
 CC=gcc
 ADDFLAGS=
-CFLAGS=-std=c11 -Wall -Wextra -Wno-unused-parameter $(ADDFLAGS) -march=$(MARCH) -O$(OPTIMIZE)
+CFLAGS=-std=c11 -Wall -Wextra -Wno-unused-parameter $(ADDFLAGS) -march=$(ARCH) -O$(O)
 LDFLAGS=
 O=0
 ARCH=x86-64
