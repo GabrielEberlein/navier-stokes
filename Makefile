@@ -27,7 +27,7 @@ headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 run:
-	./demo $(ARGS)
+	./headless $(ARGS)
 
 clean:
 	rm -f $(TARGETS) *.o .depend *~
