@@ -8,6 +8,8 @@ TARGETS=demo headless
 SOURCES=$(shell echo *.c)
 COMMON_OBJECTS=solver.o wtime.o
 
+# NOMBRE DE LA COMPILACION
+NAME = $(CC) $(ADDFLAGS) -march=$(ARCH) -O$(O)
 # ARGUMENTOS DE LA SIMULACION
 ARGS = $(N) $(DT) $(DIFF) $(VISC) $(FORCE) $(SOURCE)
 
@@ -26,9 +28,15 @@ demo: demo.o $(COMMON_OBJECTS)
 headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-run:
+run: 
 	./headless $(ARGS)
 
+perf: 
+	perf stat -e cycles ./headless $(ARGS) 2>&1
+
+benchmark: headless
+	./benchmark/benchmark.sh $(NAME)
+	
 clean:
 	rm -f $(TARGETS) *.o .depend *~
 

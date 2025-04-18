@@ -34,8 +34,12 @@ static int N;
 static float dt, diff, visc;
 static float force, source;
 
-static float *u, *v, *u_prev, *v_prev;
-static float *dens, *dens_prev;
+static float *u __attribute__((aligned(32)));
+static float *v __attribute__((aligned(32)));
+static float *u_prev __attribute__((aligned(32)));
+static float *v_prev __attribute__((aligned(32)));
+static float *dens __attribute__((aligned(32)));
+static float *dens_prev __attribute__((aligned(32)));
 
 static long int total_cells_processed = 0.0;
 
