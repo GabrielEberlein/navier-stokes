@@ -28,10 +28,10 @@ demo: demo.o $(COMMON_OBJECTS)
 headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-run: 
+run: headless
 	./headless $(ARGS)
 
-perf: 
+perf: headless
 	perf stat -e cycles ./headless $(ARGS) 2>&1
 
 benchmark: headless
