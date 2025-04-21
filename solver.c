@@ -36,59 +36,11 @@ static void set_bnd(unsigned int n, boundary b, float* x)
     x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
 }
 
-// static void lin_solve(unsigned int n, boundary b, float* restrict x, const float* restrict x0, float a, float c)
-// {
-//     for (unsigned int k = 0; k < 20; k++) {
-//         for (unsigned int i = 1; i <= n; i++) {
-//             for (unsigned int j = 1; j <= n; j++) {
-//                 x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
-//             }
-//         }
-//         set_bnd(n, b, x);
-//     }
-// }
-
-// static void lin_solve(unsigned int n, boundary b, float* restrict x, const float* restrict x0, float a, float c)
-// {
-//     x = __builtin_assume_aligned(x, 16);
-//     x0 = __builtin_assume_aligned(x0, 16);
-//     for (unsigned int k = 0; k < 20; k++) {
-//         for (unsigned int i = 1; i <= n; i++) {
-//             unsigned int j = 1;
-//             // Unrolled loop with a factor of 4
-//             // A + i * stride
-//             // i + (n + 2) * (1 + jb * 4)
-//             // A, stride constant, i variable
-//             // 
-            
-//             // for (unsigned int jb = 0; jb <= (n - 3) / 4; jb += 1) {
-//             //     unsigned int j = 1 + jb * 4;
-//             //     // (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)]) Doesn't autovectorize
-//             //     x[IX(i, j)] = (x[(i) + (n + 2) * (j)]);
-//             // }
-//             // Parece que el problema es usar IX, eso rompe la autovectorización
-
-//             for (unsigned int jb = 0; jb <= (n - 3) / 4; jb += 1) {
-//                 unsigned int j = 1 + jb * 4;
-//                 x[IX(i, j)]     = (x0[IX(i, j)]     + a * (x[IX(i - 1, j)]     + x[IX(i + 1, j)]     + x[IX(i, j - 1)]     + x[IX(i, j + 1)]))     / c;
-//                 x[IX(i, j + 1)] = (x0[IX(i, j + 1)] + a * (x[IX(i - 1, j + 1)] + x[IX(i + 1, j + 1)] + x[IX(i, j)]         + x[IX(i, j + 2)])) / c;
-//                 x[IX(i, j + 2)] = (x0[IX(i, j + 2)] + a * (x[IX(i - 1, j + 2)] + x[IX(i + 1, j + 2)] + x[IX(i, j + 1)]     + x[IX(i, j + 3)])) / c;
-//                 x[IX(i, j + 3)] = (x0[IX(i, j + 3)] + a * (x[IX(i - 1, j + 3)] + x[IX(i + 1, j + 3)] + x[IX(i, j + 2)]     + x[IX(i, j + 4)])) / c;
-//             }
-//             // Process remaining iterations
-//             for (; j <= n; j++) {
-//                 x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
-//             }
-//         }
-//         set_bnd(n, b, x);
-//     }
-// }
-
 static void lin_solve(unsigned int n, boundary b, float* restrict x,
                       const float* restrict x0, float a, float c)
 {
     const unsigned int stride = n + 2;
-    // Tell the compiler these pointers are 16-byte aligned.
+    // Tell the compiler these pointers are 32-byte aligned.
     x = __builtin_assume_aligned(x, 32);
     x0 = __builtin_assume_aligned(x0, 32);
 
@@ -97,9 +49,12 @@ static void lin_solve(unsigned int n, boundary b, float* restrict x,
         for (unsigned int j = 1; j <= n; j++) {
             float*      row       = x   + j * stride;
             const float* row0      = x0  + j * stride;
-            float*      row_above = x   + (j - 1) * stride;
-            float*      row_below = x   + (j + 1) * stride;
-
+	    //float*      row_above = x   + (j - 1) * stride;
+            //float*      row_below = x   + (j + 1) * stride;
+            float*      abv = x   + (j - 1) * stride;
+	    float*	lft = x	- 1;
+            float*      blw = x   + (j + 1) * stride;
+	    float*	rgt = x	+ 1;
 
             // i tiene que ser contiguo
             // No puedo sumar de a 4
@@ -116,22 +71,22 @@ static void lin_solve(unsigned int n, boundary b, float* restrict x,
             // }
             // Solucion 1: Calcular por otro lado row[i - 1] + row[i + 1]
 
-            float* neighbor = malloc((n + 2) * sizeof(float));
+            /*float* neighbor = malloc((n + 2) * sizeof(float));
             if (!neighbor)
-                exit(1); // or handle error
-
+                exit(1); // or handle error*/
             // Compute neighbor sums for indices 1 to n.
-            for (unsigned int i = 1; i <= n; i++) {
+            /*for (unsigned int i = 1; i <= n; i++) {
                 neighbor[i] = row[i - 1] + row[i + 1];
-            }
+            }*/
 
             // Now compute the new row values using the precomputed sums.
             // This loop is now free of inter-iteration dependencies and can autovectorize.
             for (unsigned int i = 1; i <= n; i++) {
-                row[i] = (row0[i] + a * (row_above[i] + row_below[i] + neighbor[i])) / c;
-            }
+                //row[i] = (row0[i] + a * (row_above[i] + row_below[i] + neighbor[i])) / c;
+            	row[i] = (row0[i] + a * (abv[i] + blw[i] + lft[i] + rgt[i]))/c;
+	    }
 
-            free(neighbor);
+            //free(neighbor);
             
             // Now the index for element (i,j) becomes
             // row[i] == x[ (n+2)*j + i ]  which is of the form A + i*1,
