@@ -1,5 +1,5 @@
 #include <stddef.h>
-
+#include <stdlib.h>
 #include "solver.h"
 
 #define IX(i, j) ((i) + (n + 2) * (j))
