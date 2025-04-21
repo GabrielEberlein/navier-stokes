@@ -32,7 +32,8 @@ run: headless
 	./headless $(ARGS)
 
 perf: headless
-	perf stat -e cycles ./headless $(ARGS) 2>&1
+	perf stat -e fp_ret_sse_avx_ops.all\
+		  -e L1-dcache-loads,L1-dcache-stores,L1-dcache-misses ./headless $(ARGS) 2>&1
 
 benchmark: headless
 	./benchmark/benchmark.sh $(NAME)
