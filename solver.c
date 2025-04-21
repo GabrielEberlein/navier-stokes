@@ -30,60 +30,6 @@ static void set_bnd(unsigned int n, boundary b, float * x)
     x[IX(n + 1, 0)]     = 0.5f * (x[IX(n, 0)]     + x[IX(n + 1, 1)]);
     x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
 }
-/*
-static void lin_solve_r_step(
-    unsigned int n,
-    float a,
-    float c,
-    const float * restrict same0,
-    const float * restrict neigh,
-    float * restrict same)
-{
-    const unsigned int width = (n + 2) / 2;
-
-    same = __builtin_assume_aligned(same, 32);
-    same0 = __builtin_assume_aligned(same0, 32);
-    neigh  = __builtin_assume_aligned(neigh, 32);
-
-    for (unsigned int i = width; i < width*n; ++i){
-        const int shift = (i/width)%2 == 1 ? 1 : -1;  
-        same[i] = (same0[i] + a * (neigh[i - width] +
-                                    neigh[i] +
-                                    neigh[i + shift] +
-                                    neigh[i + width])) / c;
-    }
-}
-
-static void lin_solve_b_step( 
-    unsigned int n,
-    float a,
-    float c,
-    const float * restrict same0,
-    const float * restrict neigh,
-    float * restrict same)
-{
-    unsigned int width = (n + 2) / 2;
-
-    for (unsigned int y = 1; y <= n; y+=2) {
-        for (unsigned int x = 1; x < width; ++x) {
-            const unsigned int index = idx(x, y, width);
-            same[index] = (same0[index] + a * (neigh[index - width] +
-                                neigh[index] +
-                                neigh[index - 1] +
-                                neigh[index + width])) / c;
-        }
-    }
-
-    for (unsigned int y = 2; y <= n; y+=2) {
-        for (unsigned int x = 0; x < width - 1; ++x) {
-            const unsigned int index = idx(x, y, width);
-            same[index] = (same0[index] + a * (neigh[index - width] +
-                                neigh[index] +
-                                neigh[index + 1] +
-                                neigh[index + width])) / c;
-        }
-    }
-}*/
  
 static void lin_solve_rb_step(grid_color color,
                               unsigned int n,
@@ -105,16 +51,16 @@ static void lin_solve_rb_step(grid_color color,
     for (unsigned int y = 1; y <= n; ++y, shift = -shift, start = 1 - start) { 
         float* row_same = same + y*width;
         const float* row_same0 = same0 + y*width;
-        const float* w = neigh + y*width - width;
-        const float* n = neigh + y*width;
-        const float* e = neigh + y*width + shift;
-        const float* s = neigh + y*width + width;
+        const float* lft = neigh + y*width - width;
+        const float* abv = neigh + y*width;
+        const float* rgt = neigh + y*width + shift;
+        const float* blw = neigh + y*width + width;
 
         for (unsigned int x = start; x < width - (1 - start); ++x) {
-            row_same[x] = (row_same0[x] + a * (w[x] +
-                                               n[x] +
-                                               e[x] +
-                                               s[x])) / c;
+            row_same[x] = (row_same0[x] + a * (lft[x] +
+                                               abs[x] +
+                                               rgt[x] +
+                                               blw[x])) / c;
         }
     }
 }
@@ -138,8 +84,6 @@ static void lin_solve(unsigned int n, boundary b,
     for (unsigned int k = 0; k < 20; ++k) {
         lin_solve_rb_step(RED, n, a, c, red0, blk, red);
         lin_solve_rb_step(BLACK, n, a, c, blk0, red, blk);
-        //lin_solve_r_step(n, a, c, red0, blk, red);
-        //lin_solve_b_step(n, a, c, blk0, red, blk);
         set_bnd(n, b, x);
     }
 }
