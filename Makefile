@@ -29,6 +29,10 @@ headless: headless.o $(COMMON_OBJECTS)
 run:
 	./headless $(ARGS)
 
+perf: headless
+	perf stat -e fp_ret_sse_avx_ops.all\
+		  -e L1-dcache-loads,L1-dcache-stores,L1-dcache-misses ./headless $(ARGS) 2>&1
+
 clean:
 	rm -f $(TARGETS) *.o .depend *~
 
