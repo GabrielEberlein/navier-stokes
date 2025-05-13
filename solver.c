@@ -1,5 +1,5 @@
 #include <stddef.h>
-#include <stdlib.h>
+
 #include "solver.h"
 #include "indices.h"
 
