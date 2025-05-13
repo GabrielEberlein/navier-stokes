@@ -28,7 +28,7 @@ demo: demo.o $(COMMON_OBJECTS)
 headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-run: 
+run: headless
 	./headless $(ARGS)
 
 perf: headless
