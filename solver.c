@@ -41,28 +41,45 @@ static void lin_solve_rb_step(grid_color color,
 {
     int shift = color == RED ? 1 : -1;
     unsigned int start = color == RED ? 0 : 1;
-
+    int shift_init = color == RED ? 1 : -1;
+    unsigned int start_init = color == RED ? 0 : 1;
     same0 = __builtin_assume_aligned(same0, 32);
     neigh = __builtin_assume_aligned(neigh, 32);
     same  = __builtin_assume_aligned(same , 32);
 
     unsigned int width = (n + 2) / 2;
- 
-    for (unsigned int y = 1; y <= n; ++y, shift = -shift, start = 1 - start) { 
-        float* row_same = same + y*width;
-        const float* row_same0 = same0 + y*width;
-        const float* lft = neigh + y*width - width;
-        const float* abv = neigh + y*width;
-        const float* rgt = neigh + y*width + shift;
-        const float* blw = neigh + y*width + width;
+    unsigned int x, y;
+    float * row_same, * row_same0;
+    float * lft, * abv, * rgt, * blw;
 
-        for (unsigned int x = start; x < width - (1 - start); ++x) {
+    //#pragma omp parallel for default(none) shared(same0, neigh, same, n, width, a, c, shift_init, start_init) private(y, shift, start, row_same, row_same0, lft, abv, rgt, blw, x) schedule(static) 
+    #pragma omp parallel for schedule(static)
+    for (y = 1; y <= n; ++y) { 
+        if(y % 2 == 1){
+	    shift = shift_init;
+	    start = start_init;
+	}else{
+	    shift = -shift_init;
+	    start = 1 - start_init;
+	}
+	row_same = same + y*width;
+        row_same0 = same0 + y*width;
+        lft = neigh + y*width - width;
+        abv = neigh + y*width;
+        rgt = neigh + y*width + shift;
+        blw = neigh + y*width + width;
+       	 
+        for (x = start; x < width - (1 - start); ++x) {
             row_same[x] = (row_same0[x] + a * (lft[x] +
-                                               abs[x] +
-                                               rgt[x] +
-                                               blw[x])) / c;
+                                            abv[x] +
+                                            rgt[x] +
+                                            blw[x])) / c;
         }
+	
+	
+       	
     }
+   
 }
 
 static void lin_solve(unsigned int n, boundary b,
