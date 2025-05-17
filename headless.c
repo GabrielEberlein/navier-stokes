@@ -62,6 +62,7 @@ static void clear_data ( void )
 {
 	int i, size=(N+2)*(N+2);
 
+	#pragma omp parallel for schedule(static) num_threads(4)
 	for ( i=0 ; i<size ; i++ ) {
 		u[i] = v[i] = u_prev[i] = v_prev[i] = dens[i] = dens_prev[i] = 0.0f;
 	}
@@ -95,6 +96,7 @@ static void react ( float * d, float * u, float * v )
 	float max_density = 0.0f;
 
 	max_velocity2 = max_density = 0.0f;
+	#pragma omp for schedule(static)
 	for ( i=0 ; i<size ; i++ ) {
 		if (max_velocity2 < u[i]*u[i] + v[i]*v[i]) {
 			max_velocity2 = u[i]*u[i] + v[i]*v[i];
@@ -103,7 +105,7 @@ static void react ( float * d, float * u, float * v )
 			max_density = d[i];
 		}
 	}
-
+	#pragma omp for schedule(static)
 	for ( i=0 ; i<size ; i++ ) {
 		u[i] = v[i] = d[i] = 0.0f;
 	}
@@ -129,17 +131,20 @@ static void one_step ( void )
     // static double dens_ns_p_cell = 0.0;
 
     // start_t = wtime();
-    react(dens_prev, u_prev, v_prev);
-    total_cells_processed += N * N;
-    // react_ns_p_cell += 1.0e9 * (wtime() - start_t) / (N * N);
-
-    // start_t = wtime();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt);
-    //total_cells_processed += N * N;
-    // vel_ns_p_cell += 1.0e9 * (wtime() - start_t) / (N * N);
-
-    // start_t = wtime();
-    dens_step(N, dens, dens_prev, u, v, diff, dt);
+	#pragma omp parallel num_threads(4)
+	{
+		react(dens_prev, u_prev, v_prev);
+		total_cells_processed += N * N;
+		// react_ns_p_cell += 1.0e9 * (wtime() - start_t) / (N * N);
+	
+		// start_t = wtime();
+		vel_step(N, u, v, u_prev, v_prev, visc, dt);
+		//total_cells_processed += N * N;
+		// vel_ns_p_cell += 1.0e9 * (wtime() - start_t) / (N * N);
+	
+		// start_t = wtime();
+		dens_step(N, dens, dens_prev, u, v, diff, dt);
+	}
     //total_cells_processed += N * N;
     // dens_ns_p_cell += 1.0e9 * (wtime() - start_t) / (N * N);
 

@@ -29,7 +29,7 @@ headless: headless.o $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 run: headless
-	./headless $(ARGS)
+	./demo $(ARGS)
 
 perf: headless
 	perf stat -e fp_ret_sse_avx_ops.all\
