@@ -65,11 +65,11 @@ static void lin_solve_rb_step(grid_color color,
             start = 1 - start_init;
         }
 	    row_same = same + y*width;
-        row_same0 = same0 + y*width;
-        lft = neigh + y*width - width;
-        abv = neigh + y*width;
-        rgt = neigh + y*width + shift;
-        blw = neigh + y*width + width;
+        row_same0 = (float*)same0 + y*width;
+        lft = (float*)neigh + y*width - width;
+        abv = (float*)neigh + y*width;
+        rgt = (float*)neigh + y*width + shift;
+        blw = (float*)neigh + y*width + width;
        	 
         for (x = start; x < width - (1 - start); ++x) {
             row_same[x] = (row_same0[x] + a * (lft[x] +
