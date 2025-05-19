@@ -6,13 +6,16 @@
 #define IX(x,y) (rb_idx((x),(y),(n+2)))
 #define SWAP(x0,x) {float * tmp=x0;x0=x;x=tmp;}
 
+
+
 typedef enum { NONE = 0, VERTICAL = 1, HORIZONTAL = 2 } boundary;
 typedef enum { RED, BLACK } grid_color;
 
 static void add_source(unsigned int n, float * x, const float * s, float dt)
 {
     unsigned int size = (n + 2) * (n + 2);
-    #pragma omp for schedule(static)
+    // #pragma omp for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
     for (unsigned int i = 0; i < size; i++) {
         x[i] += dt * s[i];
     }
@@ -20,7 +23,8 @@ static void add_source(unsigned int n, float * x, const float * s, float dt)
 
 static void set_bnd(unsigned int n, boundary b, float * x)
 {
-    #pragma omp for schedule(static)
+    // #pragma omp for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
     for (unsigned int i = 1; i <= n; i++) {
         x[IX(0, i)]     = b == VERTICAL ? -x[IX(1, i)] : x[IX(1, i)];
         x[IX(n + 1, i)] = b == VERTICAL ? -x[IX(n, i)] : x[IX(n, i)];
@@ -43,45 +47,31 @@ static void lin_solve_rb_step(grid_color color,
 {
     int shift = color == RED ? 1 : -1;
     unsigned int start = color == RED ? 0 : 1;
-    int shift_init = color == RED ? 1 : -1;
-    unsigned int start_init = color == RED ? 0 : 1;
+
     same0 = __builtin_assume_aligned(same0, 32);
     neigh = __builtin_assume_aligned(neigh, 32);
     same  = __builtin_assume_aligned(same , 32);
 
     unsigned int width = (n + 2) / 2;
-    unsigned int x, y;
-    float * row_same, * row_same0;
-    float * lft, * abv, * rgt, * blw;
+ 
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
+    for (unsigned int y = 1; y <= n; ++y) { 
+        float* row_same = same + y*width;
+        const float* row_same0 = same0 + y*width;
+        const float* lft = neigh + y*width - width;
+        const float* abv = neigh + y*width;
+        const float* rgt = neigh + y*width + shift;
+        const float* blw = neigh + y*width + width;
 
-    //#pragma omp parallel for default(none) shared(same0, neigh, same, n, width, a, c, shift_init, start_init) private(y, shift, start, row_same, row_same0, lft, abv, rgt, blw, x) schedule(static) 
-    #pragma omp for schedule(static) 
-    for (y = 1; y <= n; ++y) { 
-        if(y % 2 == 1){
-	    shift = shift_init;
-	    start = start_init;
-        }else{
-            shift = -shift_init;
-            start = 1 - start_init;
-        }
-	    row_same = same + y*width;
-        row_same0 = (float*)same0 + y*width;
-        lft = (float*)neigh + y*width - width;
-        abv = (float*)neigh + y*width;
-        rgt = (float*)neigh + y*width + shift;
-        blw = (float*)neigh + y*width + width;
-       	 
-        for (x = start; x < width - (1 - start); ++x) {
+        for (unsigned int x = start; x < width - (1 - start); ++x) {
             row_same[x] = (row_same0[x] + a * (lft[x] +
-                                            abv[x] +
-                                            rgt[x] +
-                                            blw[x])) / c;
+                                               abv[x] +
+                                               rgt[x] +
+                                               blw[x])) / c;
         }
-	
-	
-       	
+        shift = -shift;
+        start = 1 - start;
     }
-   
 }
 
 static void lin_solve(unsigned int n, boundary b,
@@ -100,13 +90,11 @@ static void lin_solve(unsigned int n, boundary b,
     red  = __builtin_assume_aligned(red, 32);
     blk  = __builtin_assume_aligned(blk, 32);
 
-    #pragma omp for schedule(static)
+    // #pragma omp for schedule(static)
+    // #pragma omp parallel for schedule(static) num_threads(4)
     for (unsigned int k = 0; k < 20; ++k) {
-            // Red-black Gauss-Seidel iteration
-            lin_solve_rb_step(RED, n, a, c, red0, blk0, red);
-            lin_solve_rb_step(BLACK, n, a, c, blk0, red, blk);
-        // lin_solve_rb_step(RED, n, a, c, red0, blk, red);
-        // lin_solve_rb_step(BLACK, n, a, c, blk0, red, blk);
+        lin_solve_rb_step(RED, n, a, c, red0, blk, red);
+        lin_solve_rb_step(BLACK, n, a, c, blk0, red, blk);
         set_bnd(n, b, x);
     }
 }
@@ -123,7 +111,8 @@ static void advect(unsigned int n, boundary b, float * d, const float * d0, cons
     float x, y, s0, t0, s1, t1;
 
     float dt0 = dt * n;
-    #pragma omp for schedule(static)
+    // #pragma omp for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
     for (unsigned int i = 1; i <= n; i++) {
         for (unsigned int j = 1; j <= n; j++) {
             x = i - dt0 * u[IX(i, j)];
@@ -155,7 +144,8 @@ static void advect(unsigned int n, boundary b, float * d, const float * d0, cons
 
 static void project(unsigned int n, float *u, float *v, float *p, float *div)
 {
-    #pragma omp for schedule(static)
+    // #pragma omp for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
     for (unsigned int i = 1; i <= n; i++) {
         for (unsigned int j = 1; j <= n; j++) {
             div[IX(i, j)] = -0.5f * (u[IX(i + 1, j)] - u[IX(i - 1, j)] +
@@ -168,7 +158,7 @@ static void project(unsigned int n, float *u, float *v, float *p, float *div)
 
     lin_solve(n, NONE, p, div, 1, 4);
 
-    #pragma omp for schedule(static)
+    #pragma omp parallel for schedule(static) num_threads(CORE_COUNT)
     for (unsigned int i = 1; i <= n; i++) {
         for (unsigned int j = 1; j <= n; j++) {
             u[IX(i, j)] -= 0.5f * n * (p[IX(i + 1, j)] - p[IX(i - 1, j)]);
