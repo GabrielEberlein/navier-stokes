@@ -1,6 +1,6 @@
 CC=gcc
 ADDFLAGS=
-CFLAGS=-std=c11 -Wall -Wextra -Wno-unused-parameter $(ADDFLAGS) -march=$(ARCH) -O$(O)
+CFLAGS=-std=c11 -Wall -Wextra -Wno-unused-parameter $(ADDFLAGS) -march=$(ARCH) -O$(O) -DCORE_COUNT=$(CORE)
 LDFLAGS=
 O=0
 ARCH=x86-64
@@ -12,6 +12,7 @@ COMMON_OBJECTS=solver.o wtime.o
 NAME = $(CC) $(ADDFLAGS) -march=$(ARCH) -O$(O)
 # ARGUMENTOS DE LA SIMULACION
 ARGS = $(N) $(DT) $(DIFF) $(VISC) $(FORCE) $(SOURCE)
+CORE = 1
 
 N = 64                          # Tamaño de la grilla
 DT = 0.1                        # Paso de tiempo
@@ -31,8 +32,13 @@ headless: headless.o $(COMMON_OBJECTS)
 run: headless
 	./demo $(ARGS)
 
+runh: headless
+	./headless $(ARGS)
+
+
+
 perf: headless
-	perf stat -e fp_ret_sse_avx_ops.all\
+	perf stat -e fp_ret_sse_avx_ops.all,task-clock\
 		  -e L1-dcache-loads,L1-dcache-stores,L1-dcache-misses ./headless $(ARGS) 2>&1
 
 benchmark: headless
