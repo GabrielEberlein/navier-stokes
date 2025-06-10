@@ -16,10 +16,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <cuda_runtime.h>
 
 #include "indices.h"
 #include "solver.h"
-#include "wtime.h"
+#include "wtime.hpp"
 
 /* macros */
 
@@ -50,12 +51,12 @@ static long int total_cells_processed = 0.0;
 
 static void free_data ( void )
 {
-	if ( u ) free ( u );
-	if ( v ) free ( v );
-	if ( u_prev ) free ( u_prev );
-	if ( v_prev ) free ( v_prev );
-	if ( dens ) free ( dens );
-	if ( dens_prev ) free ( dens_prev );
+	if ( u ) cudaFree ( u );
+	if ( v ) cudaFree ( v );
+	if ( u_prev ) cudaFree ( u_prev );
+	if ( v_prev ) cudaFree ( v_prev );
+	if ( dens ) cudaFree ( dens );
+	if ( dens_prev ) cudaFree ( dens_prev );
 }
 
 static void clear_data ( void )
@@ -71,12 +72,13 @@ static int allocate_data ( void )
 {
 	int size = (N+2)*(N+2);
 
-	u			= (float *) malloc ( size*sizeof(float) );
-	v			= (float *) malloc ( size*sizeof(float) );
-	u_prev		= (float *) malloc ( size*sizeof(float) );
-	v_prev		= (float *) malloc ( size*sizeof(float) );
-	dens		= (float *) malloc ( size*sizeof(float) );
-	dens_prev	= (float *) malloc ( size*sizeof(float) );
+
+	cudaMallocManaged((void**)&u, size*sizeof(float));
+    cudaMallocManaged((void**)&v, size*sizeof(float));
+    cudaMallocManaged((void**)&u_prev, size*sizeof(float));
+    cudaMallocManaged((void**)&v_prev, size*sizeof(float));
+    cudaMallocManaged((void**)&dens, size*sizeof(float));
+    cudaMallocManaged((void**)&dens_prev, size*sizeof(float));
 
 	if ( !u || !v || !u_prev || !v_prev || !dens || !dens_prev ) {
 		fprintf ( stderr, "cannot allocate data\n" );

@@ -30,23 +30,54 @@ static void set_bnd(unsigned int n, boundary b, float * x)
     x[IX(n + 1, 0)]     = 0.5f * (x[IX(n, 0)]     + x[IX(n + 1, 1)]);
     x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
 }
- 
+
+__global__ void kernel_lin_solve_rb_step(grid_color color,
+                                         float a,
+                                         float c,
+                                         const float * same0,
+                                         const float * neigh,
+                                         float * same){
+    size_t bid = blockIdx.x;
+    size_t tid = threadIdx.x;
+    unsigned int n = blockDim.x;
+
+    unsigned int width = (n + 2) / 2;
+
+    int shift = color == RED ? 1 : -1;
+    unsigned int start = color == RED ? 0 : 1;
+
+    if(bid % 2 == 0) {
+        shift = -shift;
+        start = 1 - start;
+    }
+
+    unsigned int y = bid + 1;
+    float* row_same = same + y*width;
+    const float* row_same0 = same0 + y*width;
+    const float* lft = neigh + y*width - width;
+    const float* abv = neigh + y*width;
+    const float* rgt = neigh + y*width + shift;
+    const float* blw = neigh + y*width + width;
+
+    unsigned int x = tid + start;
+    row_same[x] = (row_same0[x] + a * (lft[x] +
+                                        abv[x] +
+                                        rgt[x] +
+                                        blw[x])) / c;
+}
+
 static void lin_solve_rb_step(grid_color color,
                               unsigned int n,
                               float a,
                               float c,
-                              const float * restrict same0,
-                              const float * restrict neigh,
-                              float * restrict same)
+                              const float * same0,
+                              const float * neigh,
+                              float * same)
 {
-    int shift = color == RED ? 1 : -1;
-    unsigned int start = color == RED ? 0 : 1;
+    /*int shift = color == RED ? 1 : -1;
+    unsigned int start = color == RED ? 0 : 1;*/
 
-    same0 = __builtin_assume_aligned(same0, 32);
-    neigh = __builtin_assume_aligned(neigh, 32);
-    same  = __builtin_assume_aligned(same , 32);
-
-    unsigned int width = (n + 2) / 2;
+    /*unsigned int width = (n + 2) / 2;
  
     for (unsigned int y = 1; y <= n; ++y, shift = -shift, start = 1 - start) { 
         float* row_same = same + y*width;
@@ -62,12 +93,15 @@ static void lin_solve_rb_step(grid_color color,
                                                rgt[x] +
                                                blw[x])) / c;
         }
-    }
+    }*/
+    unsigned int width = (n + 2) / 2;
+    kernel_lin_solve_rb_step<<<n, (width - 1)>>>(color, a, c, same0, neigh, same);
+    cudaDeviceSynchronize();
 }
 
 static void lin_solve(unsigned int n, boundary b,
-                      float * restrict x,
-                      const float * restrict x0,
+                      float * x,
+                      const float * x0,
                       float a, float c)
 {
     unsigned int color_size = (n + 2) * ((n + 2) / 2);
@@ -75,11 +109,6 @@ static void lin_solve(unsigned int n, boundary b,
     const float * blk0 = x0 + color_size;
     float * red = x;
     float * blk = x + color_size;
-
-    red0 = __builtin_assume_aligned(red0, 32);
-    blk0 = __builtin_assume_aligned(blk0, 32);
-    red  = __builtin_assume_aligned(red, 32);
-    blk  = __builtin_assume_aligned(blk, 32);
 
     for (unsigned int k = 0; k < 20; ++k) {
         lin_solve_rb_step(RED, n, a, c, red0, blk, red);
