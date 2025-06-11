@@ -45,7 +45,7 @@ __global__ void kernel_lin_solve_rb_step(grid_color color,
 
     int shift = color == RED ? 1 : -1;
     unsigned int start = color == RED ? 0 : 1;
-
+ 
     if(bid % 2 == 0) {
         shift = -shift;
         start = 1 - start;
