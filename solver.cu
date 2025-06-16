@@ -75,11 +75,19 @@ __global__ void kernel_lin_solve_rb_step(grid_color color,
         start = 1 - start;
     }
 
+    __shared__ float shared_abv_rgt[1024];
+    if(tid==0){
+        for(int i=0;i<width;i++){
+            shared_abv_rgt[i] = neigh[y*width + i];
+        }
+    }
+    __syncthreads();
+
     float* row_same = same + y*width;
     const float* row_same0 = same0 + y*width;
     const float* lft = neigh + y*width - width;
-    const float* abv = neigh + y*width;
-    const float* rgt = neigh + y*width + shift;
+    const float* abv = shared_abv_rgt;
+    const float* rgt = shared_abv_rgt + shift;
     const float* blw = neigh + y*width + width;
 
     unsigned int x = tid + start;
