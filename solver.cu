@@ -3,6 +3,9 @@
 #include "solver.h"
 #include "indices.cuh"
 
+#define BLOCK_SIZE 128
+
+
 #define IX(x,y) (rb_idx((x),(y),(n+2)))
 #define SWAP(x0,x) {float * tmp=x0;x0=x;x=tmp;}
 
@@ -19,11 +22,11 @@ __global__ void kernel_add_source(float * x, const float * s, float dt, unsigned
 static void add_source(unsigned int n, float * x, const float * s, float dt)
 {
     unsigned int size = (n + 2) * (n + 2);
-    // kernel_add_source<<<128, (size+127)/128>>>(x, s, dt, size);
-    // cudaDeviceSynchronize();
-    for (unsigned int i = 0; i < size; i++) {
+    kernel_add_source<<<BLOCK_SIZE, (size+127)/BLOCK_SIZE>>>(x, s, dt, size);
+    cudaDeviceSynchronize();
+    /*for (unsigned int i = 0; i < size; i++) {
         x[i] += dt * s[i];
-    }
+    }*/
 }
 
 __global__ void kernel_set_bnd(unsigned int n, boundary b, float * x)
@@ -40,7 +43,7 @@ __global__ void kernel_set_bnd(unsigned int n, boundary b, float * x)
 
 static void set_bnd(unsigned int n, boundary b, float * x)
 {
-    kernel_set_bnd<<<128, (n+127)/128>>>(n, b, x);
+    kernel_set_bnd<<<BLOCK_SIZE, (n+(BLOCK_SIZE-1))/BLOCK_SIZE>>>(n, b, x);
     cudaDeviceSynchronize();
     
     // for (unsigned int i = 1; i <= n; i++) {
@@ -75,19 +78,21 @@ __global__ void kernel_lin_solve_rb_step(grid_color color,
         start = 1 - start;
     }
 
-    __shared__ float shared_abv_rgt[1024];
+    /*__shared__ float shared_abv_rgt[1024];
     if(tid==0){
         for(int i=0;i<width;i++){
             shared_abv_rgt[i] = neigh[y*width + i];
         }
     }
-    __syncthreads();
+    __syncthreads();*/
 
     float* row_same = same + y*width;
     const float* row_same0 = same0 + y*width;
     const float* lft = neigh + y*width - width;
-    const float* abv = shared_abv_rgt;
-    const float* rgt = shared_abv_rgt + shift;
+    //const float* abv = shared_abv_rgt;
+    //const float* rgt = shared_abv_rgt + shift;
+    const float* abv = neigh + y*width;
+    const float* rgt = neigh + y*width + shift;
     const float* blw = neigh + y*width + width;
 
     unsigned int x = tid + start;
