@@ -34,29 +34,36 @@ __global__ void kernel_set_bnd(unsigned int n, boundary b, float * x)
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x + 1;
 
     if(gid > n) return;
-
-    x[IX(0, gid)]     = b == VERTICAL ? -x[IX(1, gid)] : x[IX(1, gid)];
-    x[IX(n + 1, gid)] = b == VERTICAL ? -x[IX(n, gid)] : x[IX(n, gid)];
-    x[IX(gid, 0)]     = b == HORIZONTAL ? -x[IX(gid, 1)] : x[IX(gid, 1)];
-    x[IX(gid, n + 1)] = b == HORIZONTAL ? -x[IX(gid, n)] : x[IX(gid, n)];
+    
+    if(gid == 0){
+        x[IX(0, 0)]         = 0.5f * (x[IX(1, 0)]     + x[IX(0, 1)]);
+        x[IX(0, n + 1)]     = 0.5f * (x[IX(1, n + 1)] + x[IX(0, n)]);
+        x[IX(n + 1, 0)]     = 0.5f * (x[IX(n, 0)]     + x[IX(n + 1, 1)]);
+        x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
+    }else{
+        x[IX(0, gid)]     = b == VERTICAL ? -x[IX(1, gid)] : x[IX(1, gid)];
+        x[IX(n + 1, gid)] = b == VERTICAL ? -x[IX(n, gid)] : x[IX(n, gid)];
+        x[IX(gid, 0)]     = b == HORIZONTAL ? -x[IX(gid, 1)] : x[IX(gid, 1)];
+        x[IX(gid, n + 1)] = b == HORIZONTAL ? -x[IX(gid, n)] : x[IX(gid, n)];
+    }
 }
 
 static void set_bnd(unsigned int n, boundary b, float * x)
 {
-    kernel_set_bnd<<<BLOCK_SIZE, (n+(BLOCK_SIZE-1))/BLOCK_SIZE>>>(n, b, x);
+    
+    kernel_set_bnd<<<BLOCK_SIZE, ((n+1)+(BLOCK_SIZE-1))/BLOCK_SIZE>>>(n, b, x);
     cudaDeviceSynchronize();
     
     // for (unsigned int i = 1; i <= n; i++) {
-    //     x[IX(0, i)]     = b == VERTICAL ? -x[IX(1, i)] : x[IX(1, i)];
-    //     x[IX(n + 1, i)] = b == VERTICAL ? -x[IX(n, i)] : x[IX(n, i)];
-    //     x[IX(i, 0)]     = b == HORIZONTAL ? -x[IX(i, 1)] : x[IX(i, 1)];
-    //     x[IX(i, n + 1)] = b == HORIZONTAL ? -x[IX(i, n)] : x[IX(i, n)];
-    // }
-
-    x[IX(0, 0)]         = 0.5f * (x[IX(1, 0)]     + x[IX(0, 1)]);
-    x[IX(0, n + 1)]     = 0.5f * (x[IX(1, n + 1)] + x[IX(0, n)]);
-    x[IX(n + 1, 0)]     = 0.5f * (x[IX(n, 0)]     + x[IX(n + 1, 1)]);
-    x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
+        //     x[IX(0, i)]     = b == VERTICAL ? -x[IX(1, i)] : x[IX(1, i)];
+        //     x[IX(n + 1, i)] = b == VERTICAL ? -x[IX(n, i)] : x[IX(n, i)];
+        //     x[IX(i, 0)]     = b == HORIZONTAL ? -x[IX(i, 1)] : x[IX(i, 1)];
+        //     x[IX(i, n + 1)] = b == HORIZONTAL ? -x[IX(i, n)] : x[IX(i, n)];
+        // }
+        // x[IX(0, 0)]         = 0.5f * (x[IX(1, 0)]     + x[IX(0, 1)]);
+        // x[IX(0, n + 1)]     = 0.5f * (x[IX(1, n + 1)] + x[IX(0, n)]);
+        // x[IX(n + 1, 0)]     = 0.5f * (x[IX(n, 0)]     + x[IX(n + 1, 1)]);
+        // x[IX(n + 1, n + 1)] = 0.5f * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
 }
 
 __global__ void kernel_lin_solve_rb_step(grid_color color,
