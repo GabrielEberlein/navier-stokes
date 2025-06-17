@@ -3,7 +3,7 @@
 #include "solver.h"
 #include "indices.cuh"
 
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 512
 
 
 #define IX(x,y) (rb_idx((x),(y),(n+2)))
